@@ -1,12 +1,13 @@
 /**
- * ShiftHeader.jsx — Phase 3
- * Shows user name, role badge, quick account switch, logout.
+ * ShiftHeader.jsx — Zero-Auth Instant Direct Testing
+ * Sticky top bar with intuitive Black & Yellow role switcher pill:
+ * [ 🛵 وضع المندوب ] | [ 👔 لوحة مدير المكتب ]
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Play, Square, Clock, LogOut, RefreshCw, ChevronDown } from 'lucide-react';
-import { getShift, startShift, endShift } from '../services/storageService';
-import { quickSwitch, getCouriers } from '../services/authService';
+import { Zap, Play, Square, Clock, RotateCcw } from 'lucide-react';
+import { getShift, startShift, endShift, resetDay } from '../services/storageService';
+import { switchRole, DEFAULT_COURIER, DEFAULT_MANAGER } from '../services/authService';
 
 function formatDuration(ms) {
   if (!ms || ms < 0) return '00:00:00';
@@ -17,19 +18,12 @@ function formatDuration(ms) {
   return `${h}:${m}:${sec}`;
 }
 
-const ROLE_CONFIG = {
-  manager: { badge: '👔 مدير مكتب',    badgeBg: 'var(--color-accent)',   badgeColor: '#09090B' },
-  courier: { badge: '🛵 مندوب توصيل',  badgeBg: 'var(--color-surface-2)', badgeColor: 'var(--color-text)' },
-};
+export default function ShiftHeader({ user, onRoleChange, onRefreshOrders }) {
+  const [shift,   setShift]   = useState(getShift);
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef(null);
 
-export default function ShiftHeader({ user, onLogout, onUserSwitch }) {
-  const [shift,     setShift]     = useState(getShift);
-  const [elapsed,   setElapsed]   = useState(0);
-  const [menuOpen,  setMenuOpen]  = useState(false);
-  const timerRef  = useRef(null);
-  const menuRef   = useRef(null);
-
-  const roleConf = ROLE_CONFIG[user?.role] ?? ROLE_CONFIG.courier;
+  const isCourier = user?.role !== 'manager';
 
   /* Live timer */
   useEffect(() => {
@@ -43,13 +37,6 @@ export default function ShiftHeader({ user, onLogout, onUserSwitch }) {
     return () => clearInterval(timerRef.current);
   }, [shift.active, shift.startedAt]);
 
-  /* Close dropdown on outside click */
-  useEffect(() => {
-    function handler(e) { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   function handleShiftToggle() {
     if (shift.active) {
       if (!window.confirm('إنهاء الشيفت الحالي؟')) return;
@@ -59,115 +46,198 @@ export default function ShiftHeader({ user, onLogout, onUserSwitch }) {
     }
   }
 
-  function handleSwitch(email) {
-    setMenuOpen(false);
-    const newUser = quickSwitch(email);
-    if (newUser) onUserSwitch(newUser);
+  function handleRoleSelect(targetRole) {
+    if (user?.role === targetRole) return;
+    const newUser = switchRole(targetRole);
+    onRoleChange?.(newUser);
   }
 
-  /* Quick-switch targets (all pre-seeded accounts except current) */
-  const switchTargets = [
-    { email: 'manager@awrudrat.com', label: '👔 مدير المكتب — أحمد محمود' },
-    { email: 'courier@awrudrat.com', label: '🛵 كريم عادل (مندوب 1)' },
-    { email: 'hassan@awrudrat.com',  label: '🛵 حسن طارق (مندوب 2)' },
-  ].filter(t => t.email !== user?.email);
+  function handleQuickReset() {
+    if (!window.confirm('إعادة تهيئة البيانات التجريبية لليوم؟')) return;
+    resetDay();
+    onRefreshOrders?.();
+  }
 
   return (
-    <header style={{
-      position: 'fixed', top: 0, width: '100%', maxWidth: '480px',
-      height: 'var(--header-height)', background: 'var(--color-surface)',
-      borderBottom: '1px solid var(--color-border)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 12px', zIndex: 200, gap: 8,
-      boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
-    }}>
-      {/* Brand */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <Zap size={19} color="var(--color-accent)" fill="var(--color-accent)" />
-        <div style={{ lineHeight: 1.2 }}>
-          <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--color-accent)' }}>أوردرات ⚡</div>
-          <span className="badge" style={{ background: roleConf.badgeBg, color: roleConf.badgeColor, fontSize: 9, padding: '1px 7px', marginTop: 1 }}>
-            {roleConf.badge}
-          </span>
+    <header
+      style={{
+        position:       'fixed',
+        top:            0,
+        width:          '100%',
+        maxWidth:       '480px',
+        background:     'var(--color-surface)',
+        borderBottom:   '1px solid var(--color-border)',
+        zIndex:         200,
+        boxShadow:      '0 4px 24px rgba(0,0,0,0.5)',
+        padding:        '8px 14px 10px',
+        display:        'flex',
+        flexDirection:  'column',
+        gap:            8,
+      }}
+    >
+      {/* ── Row 1: Brand + Shift Controls / Quick Reset ── */}
+      <div
+        style={{
+          display:         'flex',
+          alignItems:      'center',
+          justifyContent:  'space-between',
+          width:           '100%',
+        }}
+      >
+        {/* Brand */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--color-accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 12px rgba(250,204,21,0.35)',
+            }}
+          >
+            <Zap size={18} color="#09090B" fill="#09090B" />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontWeight: 800, fontSize: 16, color: 'var(--color-accent)', letterSpacing: 0.2 }}>
+                أوردرات ⚡
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: 'var(--radius-full)',
+                  background: 'rgba(250,204,21,0.15)',
+                  color: 'var(--color-accent)',
+                  border: '1px solid rgba(250,204,21,0.3)',
+                }}
+              >
+                تجربة فورية
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side: Timer & Shift Toggle for Courier, or Office Badge for Manager */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {isCourier ? (
+            <>
+              {shift.active && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    background: 'var(--color-surface-2)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '3px 8px',
+                  }}
+                >
+                  <Clock size={12} color="var(--color-accent)" className="pulse-yellow" />
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: 'var(--color-accent)',
+                      letterSpacing: 0.8,
+                    }}
+                  >
+                    {formatDuration(elapsed)}
+                  </span>
+                </div>
+              )}
+              <button
+                className={`btn btn-xs ${shift.active ? 'btn-danger' : 'btn-primary'}`}
+                onClick={handleShiftToggle}
+                style={{ minWidth: 76, padding: '5px 9px', fontSize: 11 }}
+              >
+                {shift.active ? (
+                  <><Square size={11} fill="currentColor" /> إنهاء</>
+                ) : (
+                  <><Play size={11} fill="currentColor" /> شيفت</>
+                )}
+              </button>
+            </>
+          ) : (
+            <button
+              className="btn btn-ghost btn-xs"
+              onClick={handleQuickReset}
+              title="إعادة ضبط البيانات التجريبية"
+              style={{ fontSize: 11, padding: '4px 8px', gap: 4 }}
+            >
+              <RotateCcw size={12} color="var(--color-muted)" />
+              <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>إعادة تعيين</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Live Timer (courier only, during active shift) */}
-      {user?.role === 'courier' && shift.active && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '3px 9px', flexShrink: 0 }}>
-          <Clock size={12} color="var(--color-accent)" className="pulse-yellow" />
-          <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--color-accent)', letterSpacing: 1 }}>
-            {formatDuration(elapsed)}
-          </span>
-        </div>
-      )}
-
-      {/* Right controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }} ref={menuRef}>
-        {/* Shift toggle (courier only) */}
-        {user?.role === 'courier' && (
-          <button
-            className={`btn btn-xs ${shift.active ? 'btn-danger' : 'btn-primary'}`}
-            onClick={handleShiftToggle}
-            style={{ minWidth: 80 }}
-          >
-            {shift.active
-              ? <><Square size={11} fill="currentColor" /> إنهاء</>
-              : <><Play  size={11} fill="currentColor" /> شيفت</>}
-          </button>
-        )}
-
-        {/* Account Switcher Dropdown */}
-        <div style={{ position: 'relative' }}>
-          <button
-            className="btn btn-ghost btn-xs"
-            onClick={() => setMenuOpen(v => !v)}
-            style={{ gap: 4, padding: '6px 9px' }}
-            title="تبديل الحساب"
-          >
-            <RefreshCw size={13} />
-            <ChevronDown size={11} />
-          </button>
-
-          {menuOpen && (
-            <div style={{
-              position: 'absolute', top: '110%', left: 0,
-              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)', minWidth: 220, zIndex: 500,
-              boxShadow: '0 8px 30px rgba(0,0,0,0.6)', overflow: 'hidden',
-            }}>
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)' }}>
-                <p style={{ fontSize: 11, color: 'var(--color-muted)' }}>تبديل سريع للحساب</p>
-              </div>
-              {switchTargets.map(t => (
-                <button
-                  key={t.email}
-                  onClick={() => handleSwitch(t.email)}
-                  style={{
-                    display: 'block', width: '100%', padding: '10px 12px',
-                    background: 'none', border: 'none', color: 'var(--color-text)',
-                    fontFamily: 'var(--font-main)', fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', textAlign: 'right',
-                    borderBottom: '1px solid var(--color-border)',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Logout */}
+      {/* ── Row 2: Sticky High-Contrast Role Switcher Pill ── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          background: 'var(--color-surface-2)',
+          padding: 3,
+          borderRadius: 'var(--radius-full)',
+          border: '1px solid var(--color-border)',
+          gap: 4,
+        }}
+      >
         <button
-          className="btn btn-ghost btn-xs"
-          onClick={onLogout}
-          style={{ padding: '6px 9px' }}
-          title="تسجيل خروج"
+          type="button"
+          onClick={() => handleRoleSelect('courier')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '7px 12px',
+            borderRadius: 'var(--radius-full)',
+            border: 'none',
+            fontFamily: 'var(--font-main)',
+            fontSize: 12,
+            fontWeight: 800,
+            cursor: 'pointer',
+            transition: 'all 0.18s ease',
+            background: isCourier ? 'var(--color-accent)' : 'transparent',
+            color: isCourier ? '#09090B' : 'var(--color-muted)',
+            boxShadow: isCourier ? '0 2px 8px rgba(250,204,21,0.35)' : 'none',
+          }}
         >
-          <LogOut size={13} color="var(--color-danger)" />
+          <span>🛵</span>
+          <span>وضع المندوب</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleRoleSelect('manager')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '7px 12px',
+            borderRadius: 'var(--radius-full)',
+            border: 'none',
+            fontFamily: 'var(--font-main)',
+            fontSize: 12,
+            fontWeight: 800,
+            cursor: 'pointer',
+            transition: 'all 0.18s ease',
+            background: !isCourier ? 'var(--color-accent)' : 'transparent',
+            color: !isCourier ? '#09090B' : 'var(--color-muted)',
+            boxShadow: !isCourier ? '0 2px 8px rgba(250,204,21,0.35)' : 'none',
+          }}
+        >
+          <span>👔</span>
+          <span>لوحة مدير المكتب</span>
         </button>
       </div>
     </header>

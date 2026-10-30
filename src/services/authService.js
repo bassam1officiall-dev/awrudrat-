@@ -1,7 +1,6 @@
 /**
- * authService.js — Phase 3
- * Pre-seeded accounts, session management, all via localStorage.
- * No backend required. Shared state works across tabs on the same browser.
+ * authService.js — Zero-Auth Instant Direct Testing
+ * Pre-seeded accounts, auto-default session, role switching.
  */
 
 const KEYS = {
@@ -12,34 +11,38 @@ const KEYS = {
 /* ──────────────────────────────────────────
    PRE-SEEDED ACCOUNTS
 ────────────────────────────────────────── */
+export const DEFAULT_COURIER = {
+  id:         'u_c1',
+  email:      'courier@awrudrat.com',
+  password:   'Courier@123',
+  role:       'courier',
+  name:       'مندوب تجريبي (كريم عادل)',
+  label:      'مندوب توصيل',
+  courierId:  'c_1',
+  phone:      '01012345678',
+  zone:       'المهندسين / الدقي / الجيزة',
+  workMode:   'agency',   // 'agency' | 'freelance'
+  officeName: 'مكتب أوردرات إكسبريس (نظام سبيدو)',
+  officeCode: 'SPD-10',
+};
+
+export const DEFAULT_MANAGER = {
+  id:         'u_manager',
+  email:      'manager@awrudrat.com',
+  password:   'Manager@123',
+  role:       'manager',
+  name:       'مدير مكتب تجريبي (مكتب الشحن)',
+  label:      'مدير مكتب التوصيل',
+  officeName: 'مكتب أوردرات إكسبريس (نظام سبيدو)',
+  officeCode: 'SPD-10',
+  courierId:  null,
+  phone:      '01099999999',
+  workMode:   null,
+};
+
 const SEED_USERS = [
-  {
-    id:         'u_manager',
-    email:      'manager@awrudrat.com',
-    password:   'Manager@123',
-    role:       'manager',
-    name:       'أحمد محمود',
-    label:      'مدير مكتب التوصيل',
-    officeName: 'مكتب أوردرات إكسبريس (نظام سبيدو)',
-    officeCode: 'SPD-10',
-    courierId:  null,
-    phone:      '01099999999',
-    workMode:   null,
-  },
-  {
-    id:         'u_c1',
-    email:      'courier@awrudrat.com',
-    password:   'Courier@123',
-    role:       'courier',
-    name:       'كريم عادل',
-    label:      'مندوب توصيل',
-    courierId:  'c_1',
-    phone:      '01012345678',
-    zone:       'المهندسين / الدقي / الجيزة',
-    workMode:   'agency',   // 'agency' | 'freelance'
-    officeName: 'مكتب أوردرات إكسبريس',
-    officeCode: 'SPD-10',
-  },
+  DEFAULT_MANAGER,
+  DEFAULT_COURIER,
   {
     id:         'u_c2',
     email:      'hassan@awrudrat.com',
@@ -64,6 +67,10 @@ export function initAuth() {
     const existing = localStorage.getItem(KEYS.USERS);
     if (!existing) {
       localStorage.setItem(KEYS.USERS, JSON.stringify(SEED_USERS));
+    }
+    // Ensure default active session is always ready
+    if (!localStorage.getItem(KEYS.SESSION)) {
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(DEFAULT_COURIER));
     }
   } catch { /* silent */ }
 }
@@ -116,7 +123,6 @@ export function setWorkMode(userId, mode) {
     u.id === userId ? { ...u, workMode: mode } : u
   );
   saveUsers(users);
-  // Also update session if this is the current user
   const session = getSession();
   if (session?.id === userId) {
     saveSession({ ...session, workMode: mode });
@@ -124,12 +130,8 @@ export function setWorkMode(userId, mode) {
 }
 
 /* ──────────────────────────────────────────
-   AUTH
+   AUTH & ROLE SWITCH
 ────────────────────────────────────────── */
-
-/**
- * @returns {{ success: boolean, user?: object, error?: string }}
- */
 export function login(email, password) {
   const users = getAllUsers();
   const user  = users.find(
@@ -143,10 +145,20 @@ export function login(email, password) {
 }
 
 export function logout() {
-  try { localStorage.removeItem(KEYS.SESSION); } catch { /* silent */ }
+  try {
+    // In zero-auth mode, resetting session defaults back to courier
+    saveSession(DEFAULT_COURIER);
+  } catch { /* silent */ }
 }
 
-/** Quick-switch to another pre-seeded account without entering password */
+/** Instant role switch between Courier and Manager */
+export function switchRole(targetRole) {
+  const target = targetRole === 'manager' ? DEFAULT_MANAGER : DEFAULT_COURIER;
+  saveSession(target);
+  return target;
+}
+
+/** Quick-switch to another pre-seeded account */
 export function quickSwitch(email) {
   const users = getAllUsers();
   const user  = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -162,14 +174,22 @@ export function quickSwitch(email) {
 export function getSession() {
   try {
     const raw = localStorage.getItem(KEYS.SESSION);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.role) return parsed;
+    }
+    // Default to courier for instant zero-auth testing
+    saveSession(DEFAULT_COURIER);
+    return DEFAULT_COURIER;
+  } catch {
+    return DEFAULT_COURIER;
+  }
 }
 
-function saveSession(session) {
+export function saveSession(session) {
   try { localStorage.setItem(KEYS.SESSION, JSON.stringify(session)); } catch { /* silent */ }
 }
 
 export function isLoggedIn() {
-  return !!getSession();
+  return true; // Zero-auth mode: always active
 }

@@ -10,43 +10,99 @@ const KEYS = {
 };
 
 /* ──────────────────────────────────────────
-   DEMO SEED ORDERS (seeded once if empty)
+   DEMO SEED ORDERS (Pre-populated for instant testing)
 ────────────────────────────────────────── */
-const DEMO_ORDERS = [
+export const DEMO_ORDERS = [
   {
-    id: 'demo_1', name: 'مي سامي', sender: 'براند بيتش للملابس', address: 'المهندسين - شارع جامعة الدول العربية',
-    phone: '01055512345', cash: 850, deliveryFee: 35, shippingFee: 60,
-    notes: 'الدور الثالث، شقة 8', priority: 'normal', status: 'pending',
-    lat: 30.0613, lng: 31.2001, assignedTo: 'c_1', isFreelance: false,
-    routeIndex: 0, createdAt: Date.now() - 3600000, deliveredAt: null, postponedAt: null,
+    id: 'demo_1',
+    name: 'مي سامي (#1041)',
+    sender: 'براند بيتش للملابس',
+    address: 'المهندسين - شارع جامعة الدول العربية',
+    phone: '01055512345',
+    cash: 850,
+    deliveryFee: 35,
+    shippingFee: 60,
+    notes: 'الدور الثالث، شقة 8',
+    priority: 'normal',
+    status: 'pending',
+    lat: 30.0613,
+    lng: 31.2001,
+    assignedTo: 'c_1',
+    isFreelance: false,
+    routeIndex: 0,
+    createdAt: Date.now() - 3600000,
+    deliveredAt: null,
+    postponedAt: null,
   },
   {
-    id: 'demo_2', name: 'محمد عيد', sender: 'صيدلية النور', address: 'الدقي - شارع التحرير',
-    phone: '01066623456', cash: 290, deliveryFee: 35, shippingFee: 60,
-    notes: 'أمام البنك الأهلي', priority: 'urgent', status: 'pending',
-    lat: 30.0391, lng: 31.2076, assignedTo: 'c_1', isFreelance: false,
-    routeIndex: 1, createdAt: Date.now() - 3200000, deliveredAt: null, postponedAt: null,
+    id: 'demo_2',
+    name: 'محمد عيد (#1042)',
+    sender: 'صيدلية النور',
+    address: 'الدقي - شارع التحرير',
+    phone: '01066623456',
+    cash: 290,
+    deliveryFee: 35,
+    shippingFee: 60,
+    notes: 'أمام البنك الأهلي',
+    priority: 'urgent',
+    status: 'pending',
+    lat: 30.0391,
+    lng: 31.2076,
+    assignedTo: 'c_1',
+    isFreelance: false,
+    routeIndex: 1,
+    createdAt: Date.now() - 3200000,
+    deliveredAt: null,
+    postponedAt: null,
   },
   {
-    id: 'demo_3', name: 'هدى كمال', sender: 'مطعم الشيف', address: 'العجوزة - شارع البحر الأعظم',
-    phone: '01077734567', cash: 0, deliveryFee: 35, shippingFee: 60,
-    notes: 'عمارة الياسمين - شقة 5', priority: 'normal', status: 'delivered',
-    lat: 30.0607, lng: 31.2000, assignedTo: 'c_1', isFreelance: false,
-    routeIndex: 2, createdAt: Date.now() - 2800000, deliveredAt: Date.now() - 900000, postponedAt: null,
+    id: 'demo_3',
+    name: 'هدى كمال (#1043)',
+    sender: 'مطعم الشيف',
+    address: 'العجوزة - شارع البحر الأعظم',
+    phone: '01077734567',
+    cash: 450,
+    deliveryFee: 35,
+    shippingFee: 60,
+    notes: 'عمارة الياسمين - شقة 5',
+    priority: 'normal',
+    status: 'pending',
+    lat: 30.0607,
+    lng: 31.2000,
+    assignedTo: 'c_1',
+    isFreelance: false,
+    routeIndex: 2,
+    createdAt: Date.now() - 2800000,
+    deliveredAt: null,
+    postponedAt: null,
   },
   {
-    id: 'demo_4', name: 'أحمد رياض', sender: 'ستايلو للأزياء', address: 'مدينة نصر - شارع عباس العقاد',
-    phone: '01088845678', cash: 1200, deliveryFee: 35, shippingFee: 60,
-    notes: 'برج سيتي ستارز، الدور السابع', priority: 'urgent', status: 'pending',
-    lat: 30.0626, lng: 31.3336, assignedTo: 'c_2', isFreelance: false,
-    routeIndex: 0, createdAt: Date.now() - 2400000, deliveredAt: null, postponedAt: null,
+    id: 'demo_4',
+    name: 'أحمد رياض (#1044)',
+    sender: 'ستايلو للأزياء',
+    address: 'مدينة نصر - شارع عباس العقاد',
+    phone: '01088845678',
+    cash: 1200,
+    deliveryFee: 35,
+    shippingFee: 60,
+    notes: 'برج سيتي ستارز، الدور السابع',
+    priority: 'urgent',
+    status: 'pending',
+    lat: 30.0626,
+    lng: 31.3336,
+    assignedTo: 'c_2',
+    isFreelance: false,
+    routeIndex: 0,
+    createdAt: Date.now() - 2400000,
+    deliveredAt: null,
+    postponedAt: null,
   },
 ];
 
-function seedDemoOrders() {
+export function seedDemoOrders(force = false) {
   try {
     const raw = localStorage.getItem(KEYS.ORDERS);
-    if (!raw || JSON.parse(raw).length === 0) {
+    if (force || !raw || JSON.parse(raw).length === 0) {
       localStorage.setItem(KEYS.ORDERS, JSON.stringify(DEMO_ORDERS));
     }
   } catch { /* silent */ }
@@ -89,9 +145,19 @@ function normalizeOrder(raw) {
 export function getOrders() {
   try {
     const raw = localStorage.getItem(KEYS.ORDERS);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.map(normalizeOrder) : [];
-  } catch { return []; }
+    if (!raw) {
+      seedDemoOrders(true);
+      return DEMO_ORDERS.map(normalizeOrder);
+    }
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr) || arr.length === 0) {
+      seedDemoOrders(true);
+      return DEMO_ORDERS.map(normalizeOrder);
+    }
+    return arr.map(normalizeOrder);
+  } catch {
+    return DEMO_ORDERS.map(normalizeOrder);
+  }
 }
 
 export function saveOrders(orders) {
@@ -192,4 +258,5 @@ export function resetDay() {
   [KEYS.ORDERS, KEYS.SHIFT, KEYS.EXPENSES, KEYS.SETTLED].forEach(k => {
     try { localStorage.removeItem(k); } catch { /* silent */ }
   });
+  seedDemoOrders(true);
 }
